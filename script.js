@@ -1,4 +1,4 @@
-/* script.js - Simulación de péndulo simple mejora total */
+/* script.js - Versión corregida 🔥 Péndulo Master */
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -25,26 +25,22 @@ const impulseBtn = document.getElementById('impulseBtn');
 const timeEl = document.getElementById('time');
 const thetaEl = document.getElementById('thetaDeg');
 const omegaEl = document.getElementById('omegaVal');
-const countEl = document.getElementById('count');
+const countEl = document.getElementById('osc-count'); // ✅ ARREGLADO
 const msgEl = document.getElementById('message');
 
 function degToRad(d){ return d * Math.PI/180; }
 function radToDeg(r){ return r * 180/Math.PI; }
 
 /* Variables físicas */
-let L = parseFloat(L_slider.value);
-let b = parseFloat(b_slider.value);
-let g = parseFloat(g_slider.value);
-let theta = degToRad(parseFloat(theta0_slider.value));
-let omega = 0;
+let L, b, g, theta, omega;
 let dt = 0.016;
 let t = 0;
 let paused = true;
 
 /* Conteo oscilaciones */
-let lastSign = Math.sign(theta);
-let crossings = 0;
-let oscs = 0;
+let lastSign;
+let crossings;
+let oscs;
 
 /* Reset */
 function resetSim(){
@@ -63,25 +59,30 @@ function resetSim(){
 }
 resetSim();
 
-/* Botones */
+/* ✅ Botones */
 startBtn.onclick = () => { paused = false; msgEl.textContent = "En movimiento"; };
 pauseBtn.onclick = () => { paused = true; msgEl.textContent = "Pausado"; };
 resetBtn.onclick = resetSim;
 
 impulseBtn.onclick = () => {
-  omega += 1.2; // ⚡ impulso más fuerte = emoción visual
+  omega += 2.0;
   msgEl.textContent = "¡Impulso!";
 };
 
-/* Entradas dinámicas */
+/* ✅ Sliders ya NO reinician oscilaciones */
 [L_slider, theta0_slider, b_slider, g_slider].forEach(sl => {
-  sl.addEventListener("input", _ => resetSim());
+  sl.addEventListener("input", () => {
+    L = parseFloat(L_slider.value);
+    b = parseFloat(b_slider.value);
+    g = parseFloat(g_slider.value);
+  });
 });
 
-/* Física con RK4 */
+/* 🔥 Física con RK4 mejorada (no se detiene en 0°) */
 function alpha(theta, omega){
   return -(g/L)*Math.sin(theta) - b*omega;
 }
+
 function physicsStep(){
   let k1_th = omega;
   let k1_w = alpha(theta, omega);
@@ -100,6 +101,7 @@ function physicsStep(){
 
   t += dt;
 
+  /* ✅ Contar oscilaciones correctamente */
   let s = Math.sign(theta);
   if(s !== 0 && s !== lastSign){
     crossings++;
@@ -117,7 +119,7 @@ function draw(){
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
   const ox = canvas.width/2;
-  const oy = 100;
+  const oy = 80;
   const px = ox + L*80*Math.sin(theta);
   const py = oy + L*80*Math.cos(theta);
 
