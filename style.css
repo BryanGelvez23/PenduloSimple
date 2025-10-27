@@ -1,0 +1,43 @@
+:root{
+    --bg:#0b0f14;
+    --panel:#0f1418;
+    --muted:#8c99a6;
+    --accent:#66c2ff;
+    --accent2:#ffb86b;
+    --text:#e6eef6;
+    --danger:#ff6b6b;
+    --glass: rgba(255,255,255,0.03);
+  }
+  
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+  #app{max-width:1100px;margin:18px auto;padding:14px}
+  header{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+  h1{margin:0;font-size:20px}
+  .subtitle{color:var(--muted);margin:0}
+  
+  main{display:flex;gap:20px}
+  #left{flex:1;display:flex;flex-direction:column;gap:10px}
+  #canvas{background:linear-gradient(180deg,#071018 0%, #0b1216 100%);border-radius:8px;width:100%;height:420px;display:block}
+  
+  #hud{display:flex;justify-content:space-between;align-items:center;padding:6px;background:var(--panel);border-radius:8px}
+  #stats{display:flex;gap:18px;color:var(--muted);font-size:14px}
+  #game{font-size:14px}
+  
+  aside#controls{width:320px;background:var(--panel);padding:12px;border-radius:8px;display:flex;flex-direction:column;gap:12px}
+  .control-row{display:flex;flex-direction:column;gap:6px}
+  .control-row label{font-size:13px;color:var(--muted)}
+  .control-row input[type=range]{width:100%}
+  .control-row span{font-size:13px;color:var(--text);margin-top:4px}
+  
+  .buttons{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{padding:8px 10px;border-radius:6px;border:0;background:var(--glass);color:var(--text);cursor:pointer}
+  .btn.primary{background:linear-gradient(90deg,var(--accent),#5ac0ff);color:#02111a;font-weight:600}
+  .btn.danger{background:linear-gradient(90deg,var(--danger),#ff8585)}
+  .btn.small{padding:6px 8px;font-size:13px}
+  
+  .instructions{color:var(--muted);font-size:13px}
+  .result-box{display:flex;gap:8px;align-items:center}
+  .result-box input{flex:1;padding:8px;border-radius:6px;background:#071018;border:1px solid rgba(255,255,255,0.03);color:var(--text)}
+  footer{margin-top:12px;color:var(--muted);font-size:12px;text-align:center}
+  .info{color:var(--muted)}  
