@@ -238,7 +238,6 @@ function generateCode(Lval, thetaDeg, bval, timeTaken, osc){
 // main loop: accumulator pattern to integrate fixed steps
 let lastRAF = null;
 let accumulator = 0;
-const minCrossInterval = 0.08;
 
 function draw(){
   // background
