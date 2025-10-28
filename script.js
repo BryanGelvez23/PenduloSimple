@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Inicializar canvas después de un pequeño delay para móviles
     setTimeout(() => {
-        forceInitializeCanvas();
+        ultraInitializeCanvas();
     }, 300);
 });
 
@@ -60,9 +60,19 @@ window.addEventListener('load', function() {
     // Re-inicializar canvas para asegurar dimensiones correctas en móviles
     setTimeout(() => {
         if (canvas && (canvas.width === 0 || canvas.height === 0)) {
-            forceInitializeCanvas();
+            ultraInitializeCanvas();
         }
     }, 500);
+    
+    // Inicialización adicional para móviles - más agresiva
+    setTimeout(() => {
+        ultraInitializeCanvas();
+    }, 1000);
+    
+    // Una más para estar seguros
+    setTimeout(() => {
+        ultraInitializeCanvas();
+    }, 2000);
 });
 
 function initializeElements() {
@@ -143,42 +153,48 @@ function initializeCanvas() {
     }, 50);
 }
 
-// Función robusta para inicializar canvas en móviles
-function forceInitializeCanvas() {
-    if (!canvas || !ctx) return;
+// Función ULTRA robusta para inicializar canvas - FUNCIONA EN MÓVILES
+function ultraInitializeCanvas() {
+    if (!canvas || !ctx) {
+        console.log('Canvas o ctx no encontrado');
+        return;
+    }
     
-    // Obtener dimensiones del contenedor
+    console.log('Inicializando canvas...');
+    
+    // Obtener dimensiones del contenedor padre
     const container = canvas.parentElement;
     const containerRect = container.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
     
-    // Usar dimensiones del contenedor o valores por defecto
-    let width = containerRect.width || 400;
-    let height = containerRect.height || 250;
+    console.log('Dimensiones del contenedor:', containerRect);
+    
+    // Calcular dimensiones del canvas
+    let canvasWidth = Math.min(800, containerRect.width - 40); // 40px de padding
+    let canvasHeight = Math.min(400, containerRect.height - 40);
     
     // Asegurar dimensiones mínimas
-    width = Math.max(width, 300);
-    height = Math.max(height, 200);
+    canvasWidth = Math.max(canvasWidth, 300);
+    canvasHeight = Math.max(canvasHeight, 200);
+    
+    console.log('Dimensiones calculadas:', { width: canvasWidth, height: canvasHeight });
     
     // Configurar canvas
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = width + 'px';
-    canvas.style.height = height + 'px';
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    canvas.style.width = canvasWidth + 'px';
+    canvas.style.height = canvasHeight + 'px';
     
-    // Resetear escala y aplicar nueva escala
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.scale(dpr, dpr);
+    // Limpiar contexto
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // Dibujar inmediatamente
     drawPendulum();
     
-    console.log('Canvas inicializado:', {
+    console.log('Canvas inicializado exitosamente:', {
         width: canvas.width,
         height: canvas.height,
         styleWidth: canvas.style.width,
-        styleHeight: canvas.style.height,
-        dpr: dpr
+        styleHeight: canvas.style.height
     });
 }
 
@@ -387,7 +403,7 @@ function drawPendulum() {
     // Verificar que el canvas esté inicializado correctamente
     if (!canvas || !ctx || canvas.width === 0 || canvas.height === 0) {
         console.log('Canvas no inicializado, intentando inicializar...');
-        forceInitializeCanvas();
+        ultraInitializeCanvas();
         return;
     }
     
@@ -534,10 +550,18 @@ function updateGameStatus(text, icon) {
     }
 }
 
-// Actualizar estados de botones
+// Actualizar estados de botones y controles
 function updateButtonStates() {
     startBtn.disabled = isRunning;
     pauseBtn.disabled = !isRunning;
+    
+    // Deshabilitar sliders durante el juego
+    const sliders = [lengthSlider, angleSlider, dampingSlider, gravitySlider];
+    sliders.forEach(slider => {
+        if (slider) {
+            slider.disabled = gameStarted;
+        }
+    });
 }
 
 // Control de simulación
@@ -626,7 +650,7 @@ window.addEventListener('resize', function() {
     // Debounce para evitar múltiples llamadas
     clearTimeout(window.resizeTimeout);
     window.resizeTimeout = setTimeout(() => {
-        forceInitializeCanvas();
+        ultraInitializeCanvas();
         if (energyCanvas) {
             drawEnergyGraph();
         }
@@ -636,7 +660,7 @@ window.addEventListener('resize', function() {
 // Manejar cambio de orientación en móviles
 window.addEventListener('orientationchange', function() {
     setTimeout(() => {
-        forceInitializeCanvas();
+        ultraInitializeCanvas();
         if (energyCanvas) {
             drawEnergyGraph();
         }
