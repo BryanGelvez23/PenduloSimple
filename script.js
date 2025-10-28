@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Inicializar canvas después de un pequeño delay para móviles
     setTimeout(() => {
-        initializeCanvas();
+        forceInitializeCanvas();
     }, 300);
 });
 
@@ -60,7 +60,7 @@ window.addEventListener('load', function() {
     // Re-inicializar canvas para asegurar dimensiones correctas en móviles
     setTimeout(() => {
         if (canvas && (canvas.width === 0 || canvas.height === 0)) {
-            initializeCanvas();
+            forceInitializeCanvas();
         }
     }, 500);
 });
@@ -141,6 +141,45 @@ function initializeCanvas() {
         // Redibujar el péndulo después de inicializar
         drawPendulum();
     }, 50);
+}
+
+// Función robusta para inicializar canvas en móviles
+function forceInitializeCanvas() {
+    if (!canvas || !ctx) return;
+    
+    // Obtener dimensiones del contenedor
+    const container = canvas.parentElement;
+    const containerRect = container.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    
+    // Usar dimensiones del contenedor o valores por defecto
+    let width = containerRect.width || 400;
+    let height = containerRect.height || 250;
+    
+    // Asegurar dimensiones mínimas
+    width = Math.max(width, 300);
+    height = Math.max(height, 200);
+    
+    // Configurar canvas
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    
+    // Resetear escala y aplicar nueva escala
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    
+    // Dibujar inmediatamente
+    drawPendulum();
+    
+    console.log('Canvas inicializado:', {
+        width: canvas.width,
+        height: canvas.height,
+        styleWidth: canvas.style.width,
+        styleHeight: canvas.style.height,
+        dpr: dpr
+    });
 }
 
 function setupEventListeners() {
@@ -276,7 +315,7 @@ function calculateTotalEnergy() {
 // Finalizar juego
 function finishGame(success, message) {
     isRunning = false;
-    isPaused = false;
+    isPaused = false;   
     gameCompleted = true;
     
     updateButtonStates();
@@ -347,6 +386,8 @@ function updateEnergyData() {
 function drawPendulum() {
     // Verificar que el canvas esté inicializado correctamente
     if (!canvas || !ctx || canvas.width === 0 || canvas.height === 0) {
+        console.log('Canvas no inicializado, intentando inicializar...');
+        forceInitializeCanvas();
         return;
     }
     
@@ -585,7 +626,7 @@ window.addEventListener('resize', function() {
     // Debounce para evitar múltiples llamadas
     clearTimeout(window.resizeTimeout);
     window.resizeTimeout = setTimeout(() => {
-        initializeCanvas();
+        forceInitializeCanvas();
         if (energyCanvas) {
             drawEnergyGraph();
         }
@@ -595,7 +636,7 @@ window.addEventListener('resize', function() {
 // Manejar cambio de orientación en móviles
 window.addEventListener('orientationchange', function() {
     setTimeout(() => {
-        initializeCanvas();
+        forceInitializeCanvas();
         if (energyCanvas) {
             drawEnergyGraph();
         }
