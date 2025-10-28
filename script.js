@@ -45,11 +45,24 @@ const MAX_ENERGY_POINTS = 200;
 // Inicialización cuando se carga la página
 document.addEventListener('DOMContentLoaded', function() {
     initializeElements();
-    initializeCanvas();
     setupEventListeners();
     updateDisplay();
-    drawPendulum();
     updateGameStatus('Preparado para jugar', '🎮');
+    
+    // Inicializar canvas después de un pequeño delay para móviles
+    setTimeout(() => {
+        initializeCanvas();
+    }, 200);
+});
+
+// Inicialización adicional cuando la ventana esté completamente cargada
+window.addEventListener('load', function() {
+    // Re-inicializar canvas para asegurar dimensiones correctas en móviles
+    setTimeout(() => {
+        if (canvas && canvas.width === 0) {
+            initializeCanvas();
+        }
+    }, 500);
 });
 
 function initializeElements() {
@@ -88,26 +101,47 @@ function initializeElements() {
 
 function initializeCanvas() {
     // Configurar canvas principal para alta resolución
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-    
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
-    
-    // Configurar canvas de energía si existe
-    if (energyCanvas) {
-        const energyRect = energyCanvas.getBoundingClientRect();
-        energyCanvas.width = energyRect.width * dpr;
-        energyCanvas.height = energyRect.height * dpr;
-        energyCtx.scale(dpr, dpr);
+    // Esperar a que el DOM esté completamente renderizado
+    setTimeout(() => {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
         
-        energyCanvas.style.width = energyRect.width + 'px';
-        energyCanvas.style.height = energyRect.height + 'px';
-    }
+        // Verificar que el canvas tenga dimensiones válidas
+        if (rect.width === 0 || rect.height === 0) {
+            // Usar dimensiones por defecto si no se pueden obtener
+            canvas.width = 400 * dpr;
+            canvas.height = 250 * dpr;
+            canvas.style.width = '400px';
+            canvas.style.height = '250px';
+        } else {
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+        }
+        
+        ctx.scale(dpr, dpr);
+        
+        // Configurar canvas de energía si existe
+        if (energyCanvas) {
+            const energyRect = energyCanvas.getBoundingClientRect();
+            if (energyRect.width === 0 || energyRect.height === 0) {
+                energyCanvas.width = 400 * dpr;
+                energyCanvas.height = 120 * dpr;
+                energyCanvas.style.width = '400px';
+                energyCanvas.style.height = '120px';
+            } else {
+                energyCanvas.width = energyRect.width * dpr;
+                energyCanvas.height = energyRect.height * dpr;
+                energyCanvas.style.width = energyRect.width + 'px';
+                energyCanvas.style.height = energyRect.height + 'px';
+            }
+            energyCtx.scale(dpr, dpr);
+        }
+        
+        // Redibujar el péndulo después de inicializar
+        drawPendulum();
+    }, 100);
 }
 
 function setupEventListeners() {
@@ -322,6 +356,11 @@ function updateEnergyData() {
 
 // Dibujar el péndulo
 function drawPendulum() {
+    // Verificar que el canvas esté inicializado correctamente
+    if (!canvas || !ctx || canvas.width === 0 || canvas.height === 0) {
+        return;
+    }
+    
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
     
@@ -555,12 +594,47 @@ function toggleEnergyGraph() {
 
 // Manejar redimensionamiento de ventana
 window.addEventListener('resize', function() {
-    initializeCanvas();
-    drawPendulum();
-    if (energyCanvas) {
-        drawEnergyGraph();
-    }
+    // Debounce para evitar múltiples llamadas
+    clearTimeout(window.resizeTimeout);
+    window.resizeTimeout = setTimeout(() => {
+        initializeCanvas();
+        if (energyCanvas) {
+            drawEnergyGraph();
+        }
+    }, 150);
 });
+
+// Manejar cambio de orientación en móviles
+window.addEventListener('orientationchange', function() {
+    setTimeout(() => {
+        initializeCanvas();
+        if (energyCanvas) {
+            drawEnergyGraph();
+        }
+    }, 300);
+});
+
+// Función de debug para móviles
+function debugCanvas() {
+    if (canvas) {
+        console.log('Canvas dimensions:', {
+            width: canvas.width,
+            height: canvas.height,
+            styleWidth: canvas.style.width,
+            styleHeight: canvas.style.height,
+            rectWidth: canvas.getBoundingClientRect().width,
+            rectHeight: canvas.getBoundingClientRect().height,
+            devicePixelRatio: window.devicePixelRatio
+        });
+    }
+}
+
+// Función para forzar redibujado del péndulo
+function forceRedraw() {
+    if (canvas && ctx) {
+        drawPendulum();
+    }
+}
 
 // Prevenir comportamiento por defecto en algunos eventos
 document.addEventListener('keydown', function(e) {
