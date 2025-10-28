@@ -1,86 +1,108 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Péndulo Master</title>
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Péndulo Simple - Simulación Física</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="app">
-    <header>
-      <h1>Péndulo Master</h1>
-      <p class="subtitle">Ajusta, predice y completa 5 oscilaciones antes de que se apague. ¡Gana!</p>
-    </header>
+    <div class="container">
+        <header>
+            <h1>Péndulo Simple - Desafío Educativo</h1>
+            <p>Logra exactamente 5 oscilaciones completas en menos de 20 segundos</p>
+        </header>
 
-    <main>
-      <div id="left">
-        <canvas id="canvas"></canvas>
-        <div id="hud">
-          <div id="stats">
-            <div>t: <span id="time">0.00</span> s</div>
-            <div>θ: <span id="thetaDeg">0</span>°</div>
-            <div>ω: <span id="omegaVal">0.00</span> rad/s</div>
-          </div>
-          <div id="game">
-            <div>Objetivo: <strong>5 oscilaciones</strong></div>
-            <div>Oscilaciones: <span id="osc-count">0</span></div>
-            <div id="message" class="info">Presiona <strong>Start</strong></div>
-          </div>
-        </div>
-      </div>
-
-      <aside id="controls">
-        <div class="control-row">
-          <label>Longitud L (m)</label>
-          <input id="L" type="range" min="0.5" max="3.0" step="0.05" value="2.0">
-          <span id="Lval">2.00</span>
+        <div class="game-rules">
+            <h3>🎯 Reglas del Desafío</h3>
+            <ul>
+                <li>❌ <strong>NO</strong> uses el botón "Impulso"</li>
+                <li>✅ Solo ajusta: Ángulo inicial, Longitud y Amortiguación</li>
+                <li>🎯 Debes lograr <strong>EXACTAMENTE 5 oscilaciones</strong></li>
+                <li>⏱️ Tiempo límite: <strong>20 segundos</strong></li>
+                <li>🏆 Si haces 4.9 o 5.1 oscilaciones → NO cuenta</li>
+            </ul>
         </div>
 
-        <div class="control-row">
-          <label>Ángulo inicial θ (°)</label>
-          <input id="theta0" type="range" min="5" max="80" step="1" value="45">
-          <span id="theta0val">45</span>
+        <div class="canvas-container">
+            <canvas id="pendulumCanvas" width="800" height="400"></canvas>
+            <div class="game-status">
+                <div class="status-indicator" id="gameStatusIndicator">
+                    <span class="status-icon">🎮</span>
+                    <span id="gameStatusText">Preparado para jugar</span>
+                </div>
+            </div>
         </div>
 
-        <div class="control-row">
-          <label>Fricción b</label>
-          <input id="b" type="range" min="0" max="0.1" step="0.001" value="0.02">
-          <span id="bval">0.020</span>
+        <div class="controls-card">
+            <div class="controls-section">
+                <h3>Parámetros del Péndulo</h3>
+                <div class="slider-group">
+                    <label for="lengthSlider">Longitud (L): <span id="lengthValue">1.0</span> m</label>
+                    <input type="range" id="lengthSlider" min="0.5" max="3.0" step="0.1" value="1.0">
+                </div>
+                
+                <div class="slider-group">
+                    <label for="angleSlider">Ángulo inicial (θ₀): <span id="angleValue">30</span>°</label>
+                    <input type="range" id="angleSlider" min="5" max="90" step="5" value="30">
+                </div>
+                
+                <div class="slider-group">
+                    <label for="dampingSlider">Amortiguación (b): <span id="dampingValue">0.1</span></label>
+                    <input type="range" id="dampingSlider" min="0" max="1.0" step="0.05" value="0.1">
+                </div>
+                
+                <div class="slider-group">
+                    <label for="gravitySlider">Gravedad (g): <span id="gravityValue">9.8</span> m/s²</label>
+                    <input type="range" id="gravitySlider" min="1.0" max="20.0" step="0.5" value="9.8">
+                </div>
+            </div>
+
+            <div class="buttons-section">
+                <h3>Controles del Juego</h3>
+                <div class="button-group">
+                    <button id="startBtn" class="btn btn-primary">🎮 Iniciar Desafío</button>
+                    <button id="pauseBtn" class="btn btn-secondary" disabled>⏸️ Pausar</button>
+                    <button id="resetBtn" class="btn btn-warning">🔄 Reiniciar</button>
+                    <button id="impulseBtn" class="btn btn-danger" disabled>⚡ Impulso (PROHIBIDO)</button>
+                </div>
+            </div>
+
+            <div class="hud-section">
+                <h3>📊 Progreso del Desafío</h3>
+                <div class="hud-grid">
+                    <div class="hud-item primary">
+                        <span class="hud-label">⏱️ Tiempo:</span>
+                        <span id="timeValue" class="hud-value">0.00</span> s
+                        <div class="time-limit">/ 20s</div>
+                    </div>
+                    <div class="hud-item">
+                        <span class="hud-label">📐 Ángulo:</span>
+                        <span id="angleDisplay" class="hud-value">0.00</span>°
+                    </div>
+                    <div class="hud-item">
+                        <span class="hud-label">⚡ Velocidad:</span>
+                        <span id="velocityValue" class="hud-value">0.00</span> rad/s
+                    </div>
+                    <div class="hud-item success">
+                        <span class="hud-label">🎯 Oscilaciones:</span>
+                        <span id="oscCountValue" class="hud-value">0</span>
+                        <div class="osc-target">/ 5</div>
+                    </div>
+                </div>
+                <div class="status-message">
+                    <span id="statusMessage" class="status-text">🎮 Configura el péndulo y presiona 'Iniciar Desafío'</span>
+                </div>
+            </div>
+
+            <div class="energy-graph-container" id="energyGraphContainer">
+                <h4>📈 Energía del Sistema</h4>
+                <canvas id="energyCanvas" width="400" height="150"></canvas>
+                <button id="toggleGraphBtn" class="btn btn-small">Ocultar Gráfica</button>
+            </div>
         </div>
+    </div>
 
-        <div class="control-row">
-          <label>Gravedad g (m/s²)</label>
-          <input id="g" type="range" min="1" max="20" step="0.1" value="9.81">
-          <span id="gval">9.81</span>
-        </div>
-
-        <div class="buttons">
-          <button id="startBtn" class="btn primary">Start</button>
-          <button id="pauseBtn" class="btn">Pause</button>
-          <button id="resetBtn" class="btn danger">Reset</button>
-          <button id="impulseBtn" class="btn">Impulso</button>
-        </div>
-
-        <div class="instructions">
-          <p><strong>Instrucciones:</strong> Ajusta L, θ o b. Pulsa Start. Para ganar completa 5 oscilaciones antes que la amplitud caiga por debajo del 20% del valor inicial.</p>
-        </div>
-
-        <div class="result-box">
-          <div>Tu código final:</div>
-          <input id="finalCode" readonly>
-          <button id="copyBtn" class="btn small">Copiar</button>
-        </div>
-      </aside>
-    </main>
-
-    <footer>
-      <small>Péndulo Master • Actividad diseñada para clase de Ecuaciones Diferenciales • Equipo: Ingenieros del Futuro</small>
-    </footer>
-  </div>
-
-  <script src="script.js" defer></script>
+    <script src="script.js" defer></script>
 </body>
-
 </html>
-
