@@ -33,7 +33,7 @@ const impulseDuration = 0.05; // Duración del impulso (s)
 
 // Elementos del DOM
 let lengthSlider, angleSlider, dampingSlider, gravitySlider;
-let startBtn, pauseBtn, resetBtn, impulseBtn;
+let startBtn, pauseBtn, resetBtn;
 let timeValue, angleDisplay, velocityValue, oscCountValue, statusMessage;
 let gameStatusText, gameStatusIndicator;
 let toggleGraphBtn;
@@ -52,14 +52,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inicializar canvas después de un pequeño delay para móviles
     setTimeout(() => {
         initializeCanvas();
-    }, 200);
+    }, 300);
 });
 
 // Inicialización adicional cuando la ventana esté completamente cargada
 window.addEventListener('load', function() {
     // Re-inicializar canvas para asegurar dimensiones correctas en móviles
     setTimeout(() => {
-        if (canvas && canvas.width === 0) {
+        if (canvas && (canvas.width === 0 || canvas.height === 0)) {
             initializeCanvas();
         }
     }, 500);
@@ -86,7 +86,6 @@ function initializeElements() {
     startBtn = document.getElementById('startBtn');
     pauseBtn = document.getElementById('pauseBtn');
     resetBtn = document.getElementById('resetBtn');
-    impulseBtn = document.getElementById('impulseBtn');
     toggleGraphBtn = document.getElementById('toggleGraphBtn');
     
     // Elementos de display
@@ -141,7 +140,7 @@ function initializeCanvas() {
         
         // Redibujar el péndulo después de inicializar
         drawPendulum();
-    }, 100);
+    }, 50);
 }
 
 function setupEventListeners() {
@@ -177,7 +176,6 @@ function setupEventListeners() {
     startBtn.addEventListener('click', startSimulation);
     pauseBtn.addEventListener('click', pauseSimulation);
     resetBtn.addEventListener('click', resetSimulation);
-    impulseBtn.addEventListener('click', applyImpulse);
     
     if (toggleGraphBtn) {
         toggleGraphBtn.addEventListener('click', toggleEnergyGraph);
@@ -238,15 +236,6 @@ function checkZeroCrossing() {
     }
 }
 
-// Aplicar impulso físico (deshabilitado en el juego)
-function applyImpulse() {
-    if (!isRunning || gameStarted) return;
-    
-    const impulse = (impulseForce * impulseDuration) / (m * L);
-    omega += impulse;
-    
-    updateStatus(`Impulso aplicado! Velocidad: ${omega.toFixed(2)} rad/s`);
-}
 
 // Verificar condiciones de finalización del juego - Movimiento natural
 function checkGameConditions() {
@@ -364,8 +353,8 @@ function drawPendulum() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
     
-    // Limpiar canvas
-    ctx.fillStyle = '#0a0a0a';
+    // Limpiar canvas con fondo más profesional
+    ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Calcular posición del péndulo
@@ -373,8 +362,8 @@ function drawPendulum() {
     const bobX = centerX + pendulumLength * Math.sin(theta);
     const bobY = centerY + pendulumLength * Math.cos(theta);
     
-    // Dibujar línea del péndulo
-    ctx.strokeStyle = '#4CAF50';
+    // Dibujar línea del péndulo con color profesional
+    ctx.strokeStyle = '#3498db';
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(centerX, centerY);
@@ -382,13 +371,13 @@ function drawPendulum() {
     ctx.stroke();
     
     // Dibujar punto de pivote
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#ecf0f1';
     ctx.beginPath();
     ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
     ctx.fill();
     
-    // Dibujar masa del péndulo
-    ctx.fillStyle = '#f44336';
+    // Dibujar masa del péndulo con color profesional
+    ctx.fillStyle = '#e74c3c';
     ctx.beginPath();
     ctx.arc(bobX, bobY, 15, 0, 2 * Math.PI);
     ctx.fill();
@@ -401,7 +390,7 @@ function drawPendulum() {
     
     // Dibujar trayectoria circular (opcional)
     if (isRunning) {
-        ctx.strokeStyle = 'rgba(76, 175, 80, 0.2)';
+        ctx.strokeStyle = 'rgba(52, 152, 219, 0.2)';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(centerX, centerY, pendulumLength, 0, 2 * Math.PI);
@@ -508,7 +497,6 @@ function updateGameStatus(text, icon) {
 function updateButtonStates() {
     startBtn.disabled = isRunning;
     pauseBtn.disabled = !isRunning;
-    impulseBtn.disabled = gameStarted || !isRunning; // Deshabilitado durante el juego
 }
 
 // Control de simulación
@@ -614,27 +602,6 @@ window.addEventListener('orientationchange', function() {
     }, 300);
 });
 
-// Función de debug para móviles
-function debugCanvas() {
-    if (canvas) {
-        console.log('Canvas dimensions:', {
-            width: canvas.width,
-            height: canvas.height,
-            styleWidth: canvas.style.width,
-            styleHeight: canvas.style.height,
-            rectWidth: canvas.getBoundingClientRect().width,
-            rectHeight: canvas.getBoundingClientRect().height,
-            devicePixelRatio: window.devicePixelRatio
-        });
-    }
-}
-
-// Función para forzar redibujado del péndulo
-function forceRedraw() {
-    if (canvas && ctx) {
-        drawPendulum();
-    }
-}
 
 // Prevenir comportamiento por defecto en algunos eventos
 document.addEventListener('keydown', function(e) {
