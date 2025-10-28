@@ -1,285 +1,575 @@
-/* Pendulo Master - Script Final Optimizado */
+// Variables globales del sistema
+let canvas, ctx;
+let energyCanvas, energyCtx;
+let animationId;
+let isRunning = false;
+let isPaused = false;
+let gameStarted = false;
+let gameCompleted = false;
 
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
+// Variables físicas del péndulo
+let theta = 0;          // Ángulo actual (radianes)
+let omega = 0;          // Velocidad angular (rad/s)
+let L = 1.0;           // Longitud del péndulo (m)
+let g = 9.8;           // Gravedad (m/s²)
+let b = 0.1;           // Coeficiente de amortiguación
+let m = 1;             // Masa (kg)
 
-// ✅ Ajuste real de pixeles para evitar blur
-function resizeCanvas() {
-  const ratio = window.devicePixelRatio || 1;
-  const w = canvas.clientWidth * ratio;
-  const h = canvas.clientHeight * ratio;
-  canvas.width = w;
-  canvas.height = h;
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
+// Parámetros de simulación
+const dt = 0.016;      // Paso de tiempo fijo (60 FPS)
+let time = 0;          // Tiempo transcurrido
+let oscCount = 0;      // Contador de oscilaciones
+let lastCrossTime = 0; // Último tiempo de cruce por cero
+const minCrossInterval = 0.15; // Intervalo mínimo entre cruces (debounce natural)
 
-// 🎚 Controles
-const L_slider = document.getElementById('L');
-const theta0_slider = document.getElementById('theta0');
-const b_slider = document.getElementById('b');
-const g_slider = document.getElementById('g');
+// Parámetros del juego
+const TARGET_OSCILLATIONS = 5;
+const TIME_LIMIT = 20;
+let gameStartTime = 0;
 
-const Lval = document.getElementById('Lval');
-const theta0val = document.getElementById('theta0val');
-const bval = document.getElementById('bval');
-const gval = document.getElementById('gval');
+// Parámetros de impulso (deshabilitado en el juego)
+const impulseForce = 5;    // Fuerza del impulso (N)
+const impulseDuration = 0.05; // Duración del impulso (s)
 
-const startBtn = document.getElementById('startBtn');
-const pauseBtn = document.getElementById('pauseBtn');
-const resetBtn = document.getElementById('resetBtn');
-const impulseBtn = document.getElementById('impulseBtn');
+// Elementos del DOM
+let lengthSlider, angleSlider, dampingSlider, gravitySlider;
+let startBtn, pauseBtn, resetBtn, impulseBtn;
+let timeValue, angleDisplay, velocityValue, oscCountValue, statusMessage;
+let gameStatusText, gameStatusIndicator;
+let toggleGraphBtn;
 
-const timeEl = document.getElementById('time');
-const thetaEl = document.getElementById('thetaDeg');
-const omegaEl = document.getElementById('omegaVal');
-const countEl = document.getElementById('osc-count');
-const msgEl = document.getElementById('message');
-const finalCodeInput = document.getElementById('finalCode');
-const copyBtn = document.getElementById('copyBtn');
+// Datos para gráfica de energía
+let energyData = [];
+const MAX_ENERGY_POINTS = 200;
 
-// 🔧 Utilidades
-const degToRad = d => d * Math.PI / 180;
-const radToDeg = r => r * 180 / Math.PI;
-
-// 📌 Parámetros iniciales
-let L = parseFloat(L_slider.value);
-let theta0_deg = parseFloat(theta0_slider.value);
-let b = parseFloat(b_slider.value);
-let g = parseFloat(g_slider.value);
-let dt_fixed = 0.016;
-let m = 1.0;
-
-// 📌 Estado
-let theta = degToRad(theta0_deg);
-let omega = 0;
-let t_sim = 0;
-let paused = true;
-let finished = false;
-
-// 🎯 Conteo de oscilaciones
-let lastSign = Math.sign(theta);
-let oscCount = 0;
-const minCrossInterval = 0.1;
-let lastCrossTime = -999;
-const N_OSC = 5;
-
-// ⚠ Nuevo criterio: velocidad mínima permitida antes de “apagarse”
-const MIN_SPEED = 0.10; // rad/s
-
-function updateLabels() {
-  Lval.textContent = L.toFixed(2);
-  theta0val.textContent = theta0_deg.toFixed(0);
-  bval.textContent = b.toFixed(3);
-  gval.textContent = g.toFixed(2);
-}
-updateLabels();
-
-// ✅ Reset total
-function resetSim() {
-  L = parseFloat(L_slider.value);
-  theta0_deg = parseFloat(theta0_slider.value);
-  b = parseFloat(b_slider.value);
-  g = parseFloat(g_slider.value);
-
-  theta = degToRad(theta0_deg);
-  omega = 0;
-  t_sim = 0;
-  paused = true;
-  finished = false;
-
-  lastSign = Math.sign(theta);
-  oscCount = 0;
-  lastCrossTime = -999;
-
-  countEl.textContent = "0";
-  timeEl.textContent = "0.00";
-  finalCodeInput.value = "";
-  msgEl.textContent = "Presiona Start";
-}
-resetSim();
-
-// 🚀 Botones
-startBtn.addEventListener('click', () => {
-  if (finished) resetSim();
-  paused = false;
-  msgEl.textContent = "Corriendo...";
+// Inicialización cuando se carga la página
+document.addEventListener('DOMContentLoaded', function() {
+    initializeElements();
+    initializeCanvas();
+    setupEventListeners();
+    updateDisplay();
+    drawPendulum();
+    updateGameStatus('Preparado para jugar', '🎮');
 });
 
-pauseBtn.addEventListener('click', () => {
-  paused = !paused;
-  msgEl.textContent = paused ? "Pausado" : "Corriendo...";
-});
-
-resetBtn.addEventListener('click', resetSim);
-
-impulseBtn.addEventListener('click', () => {
-  omega += 0.8; // ✅ impulso realista y funcional
-  msgEl.textContent = "Impulso aplicado";
-});
-
-// 📋 Copiar código final
-copyBtn.addEventListener('click', () => {
-  finalCodeInput.select();
-  document.execCommand("copy");
-});
-
-/* ---------- PARTE 2/3: Física RK4, energía, detección y dibujo ---------- */
-
-// física: aceleración angular
-function theta_dd(theta_local, omega_local) {
-  return - (g / L) * Math.sin(theta_local) - b * omega_local;
-}
-
-// paso RK4
-function rk4_step(theta_local, omega_local, h) {
-  const k1_th = omega_local;
-  const k1_w  = theta_dd(theta_local, omega_local);
-
-  const k2_th = omega_local + 0.5 * h * k1_w;
-  const k2_w  = theta_dd(theta_local + 0.5 * h * k1_th, omega_local + 0.5 * h * k1_w);
-
-  const k3_th = omega_local + 0.5 * h * k2_w;
-  const k3_w  = theta_dd(theta_local + 0.5 * h * k2_th, omega_local + 0.5 * h * k2_w);
-
-  const k4_th = omega_local + h * k3_w;
-  const k4_w  = theta_dd(theta_local + h * k3_th, omega_local + h * k3_w);
-
-  const theta_next = theta_local + (h / 6) * (k1_th + 2*k2_th + 2*k3_th + k4_th);
-  const omega_next = omega_local + (h / 6) * (k1_w + 2*k2_w + 2*k3_w + k4_w);
-
-  return [theta_next, omega_next];
-}
-
-// energía (por si la quieres mostrar luego)
-function energies(theta_local, omega_local) {
-  const v = L * omega_local;
-  const Ekin = 0.5 * m * v * v;
-  const Epot = m * g * L * (1 - Math.cos(theta_local));
-  return [Ekin, Epot, Ekin + Epot];
-}
-
-// detection robusta de oscilación
-function checkOscillation(now) {
-  const s = Math.sign(theta);
-  if (s === 0) return;
-  if (s !== lastSign) {
-    // solo contamos si estamos cerca del centro y pasó suficiente tiempo desde la última cruzada
-    if (Math.abs(theta) < 0.12 && (now - lastCrossTime) > minCrossInterval) {
-      lastCrossTime = now;
-      // cada dos cruces = 1 oscilación completa (ida + vuelta)
-      oscCount++;
-      countEl.textContent = oscCount;
-      // éxito inmediato si llegó a N_OSC
-      if (oscCount >= N_OSC && !finished) {
-        finish(true);
-      }
+function initializeElements() {
+    // Canvas principal
+    canvas = document.getElementById('pendulumCanvas');
+    ctx = canvas.getContext('2d');
+    
+    // Canvas de energía
+    energyCanvas = document.getElementById('energyCanvas');
+    if (energyCanvas) {
+        energyCtx = energyCanvas.getContext('2d');
     }
-    lastSign = s;
-  }
+    
+    // Sliders
+    lengthSlider = document.getElementById('lengthSlider');
+    angleSlider = document.getElementById('angleSlider');
+    dampingSlider = document.getElementById('dampingSlider');
+    gravitySlider = document.getElementById('gravitySlider');
+    
+    // Botones
+    startBtn = document.getElementById('startBtn');
+    pauseBtn = document.getElementById('pauseBtn');
+    resetBtn = document.getElementById('resetBtn');
+    impulseBtn = document.getElementById('impulseBtn');
+    toggleGraphBtn = document.getElementById('toggleGraphBtn');
+    
+    // Elementos de display
+    timeValue = document.getElementById('timeValue');
+    angleDisplay = document.getElementById('angleDisplay');
+    velocityValue = document.getElementById('velocityValue');
+    oscCountValue = document.getElementById('oscCountValue');
+    statusMessage = document.getElementById('statusMessage');
+    gameStatusText = document.getElementById('gameStatusText');
+    gameStatusIndicator = document.getElementById('gameStatusIndicator');
 }
 
-// dibujo del péndulo (limpio y responsivo)
+function initializeCanvas() {
+    // Configurar canvas principal para alta resolución
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    
+    // Configurar canvas de energía si existe
+    if (energyCanvas) {
+        const energyRect = energyCanvas.getBoundingClientRect();
+        energyCanvas.width = energyRect.width * dpr;
+        energyCanvas.height = energyRect.height * dpr;
+        energyCtx.scale(dpr, dpr);
+        
+        energyCanvas.style.width = energyRect.width + 'px';
+        energyCanvas.style.height = energyRect.height + 'px';
+    }
+}
+
+function setupEventListeners() {
+    // Sliders
+    lengthSlider.addEventListener('input', function() {
+        L = parseFloat(this.value);
+        document.getElementById('lengthValue').textContent = L.toFixed(1);
+        if (!isRunning) {
+            resetSimulation();
+        }
+    });
+    
+    angleSlider.addEventListener('input', function() {
+        const angleDeg = parseFloat(this.value);
+        theta = angleDeg * Math.PI / 180;
+        document.getElementById('angleValue').textContent = angleDeg;
+        if (!isRunning) {
+            resetSimulation();
+        }
+    });
+    
+    dampingSlider.addEventListener('input', function() {
+        b = parseFloat(this.value);
+        document.getElementById('dampingValue').textContent = b.toFixed(2);
+    });
+    
+    gravitySlider.addEventListener('input', function() {
+        g = parseFloat(this.value);
+        document.getElementById('gravityValue').textContent = g.toFixed(1);
+    });
+    
+    // Botones
+    startBtn.addEventListener('click', startSimulation);
+    pauseBtn.addEventListener('click', pauseSimulation);
+    resetBtn.addEventListener('click', resetSimulation);
+    impulseBtn.addEventListener('click', applyImpulse);
+    
+    if (toggleGraphBtn) {
+        toggleGraphBtn.addEventListener('click', toggleEnergyGraph);
+    }
+    
+    // Actualizar valores iniciales
+    document.getElementById('lengthValue').textContent = L.toFixed(1);
+    document.getElementById('angleValue').textContent = (theta * 180 / Math.PI).toFixed(0);
+    document.getElementById('dampingValue').textContent = b.toFixed(2);
+    document.getElementById('gravityValue').textContent = g.toFixed(1);
+}
+
+// Función principal de integración RK4 - Movimiento natural sin detenciones artificiales
+function rk4Step() {
+    // Ecuación del péndulo: θ'' = -(g/L)sin(θ) - bω
+    // La fricción (b) causa desaceleración gradual, NO detención abrupta
+    const k1_theta = omega;
+    const k1_omega = -(g/L) * Math.sin(theta) - b * omega;
+    
+    const k2_theta = omega + (dt/2) * k1_omega;
+    const k2_omega = -(g/L) * Math.sin(theta + (dt/2) * k1_theta) - b * (omega + (dt/2) * k1_omega);
+    
+    const k3_theta = omega + (dt/2) * k2_omega;
+    const k3_omega = -(g/L) * Math.sin(theta + (dt/2) * k2_theta) - b * (omega + (dt/2) * k2_omega);
+    
+    const k4_theta = omega + dt * k3_omega;
+    const k4_omega = -(g/L) * Math.sin(theta + dt * k3_theta) - b * (omega + dt * k3_omega);
+    
+    // Actualizar posición y velocidad - el péndulo continúa su movimiento naturalmente
+    theta += (dt/6) * (k1_theta + 2*k2_theta + 2*k3_theta + k4_theta);
+    omega += (dt/6) * (k1_omega + 2*k2_omega + 2*k3_omega + k4_omega);
+}
+
+// Detección mejorada de cruces por cero - SIN detención artificial
+function checkZeroCrossing() {
+    const currentTime = time;
+    
+    // Solo contar cruces si ha pasado suficiente tiempo desde el último
+    if (currentTime - lastCrossTime >= minCrossInterval) {
+        // Detectar cruce por cero de manera más natural
+        const prevTheta = theta - omega * dt;
+        const currentTheta = theta;
+        
+        // Verificar cambio de signo del ángulo (cruzar por cero)
+        // SIN restricciones de velocidad que causen detención artificial
+        if (Math.sign(prevTheta) !== Math.sign(currentTheta) && 
+            Math.abs(currentTheta) < 0.3) { // Rango más amplio para detección natural
+            
+            oscCount++;
+            lastCrossTime = currentTime;
+            
+            // Actualizar estado del juego
+            if (gameStarted) {
+                updateGameStatus(`Oscilación ${oscCount}/${TARGET_OSCILLATIONS}`, '🎯');
+                updateStatus(`Oscilación ${oscCount} detectada!`);
+            }
+        }
+    }
+}
+
+// Aplicar impulso físico (deshabilitado en el juego)
+function applyImpulse() {
+    if (!isRunning || gameStarted) return;
+    
+    const impulse = (impulseForce * impulseDuration) / (m * L);
+    omega += impulse;
+    
+    updateStatus(`Impulso aplicado! Velocidad: ${omega.toFixed(2)} rad/s`);
+}
+
+// Verificar condiciones de finalización del juego - Movimiento natural
+function checkGameConditions() {
+    if (!gameStarted) return false;
+    
+    const gameTime = time - gameStartTime;
+    
+    // Éxito: 5 oscilaciones completadas en menos de 20 segundos
+    if (oscCount >= TARGET_OSCILLATIONS && gameTime <= TIME_LIMIT) {
+        finishGame(true, `¡RETO COMPLETADO! ${oscCount} oscilaciones en ${gameTime.toFixed(2)}s`);
+        return true;
+    }
+    
+    // Fallo: Tiempo excedido
+    if (gameTime > TIME_LIMIT) {
+        finishGame(false, `Fallaste: Tiempo excedido (${TIME_LIMIT}s)`);
+        return true;
+    }
+    
+    // Fallo: Energía muy baja antes de completar las oscilaciones
+    // Solo verificar después de un tiempo mínimo para permitir movimiento natural
+    const energy = calculateTotalEnergy();
+    if (energy < 0.001 && oscCount < TARGET_OSCILLATIONS && gameTime > 10) {
+        finishGame(false, "Fallaste: Energía insuficiente");
+        return true;
+    }
+    
+    return false;
+}
+
+// Calcular energía total del sistema
+function calculateTotalEnergy() {
+    const kinetic = 0.5 * m * L * L * omega * omega;
+    const potential = m * g * L * (1 - Math.cos(theta));
+    return kinetic + potential;
+}
+
+// Finalizar juego
+function finishGame(success, message) {
+    isRunning = false;
+    isPaused = false;
+    gameCompleted = true;
+    
+    updateButtonStates();
+    
+    if (success) {
+        updateGameStatus('¡ÉXITO!', '🏆');
+        updateStatus(message, 'success');
+    } else {
+        updateGameStatus('Fallaste', '❌');
+        updateStatus(message, 'error');
+    }
+}
+
+// Bucle principal de animación
+function animate() {
+    if (!isRunning || isPaused) return;
+    
+    // Integración física
+    rk4Step();
+    
+    // Actualizar tiempo
+    time += dt;
+    
+    // Verificar cruces por cero
+    checkZeroCrossing();
+    
+    // Verificar condiciones del juego
+    if (checkGameConditions()) {
+        return;
+    }
+    
+    // Actualizar datos de energía
+    updateEnergyData();
+    
+    // Actualizar display
+    updateDisplay();
+    
+    // Dibujar péndulo
+    drawPendulum();
+    
+    // Dibujar gráfica de energía
+    drawEnergyGraph();
+    
+    // Continuar animación
+    animationId = requestAnimationFrame(animate);
+}
+
+// Actualizar datos de energía para la gráfica
+function updateEnergyData() {
+    const totalEnergy = calculateTotalEnergy();
+    const kinetic = 0.5 * m * L * L * omega * omega;
+    const potential = m * g * L * (1 - Math.cos(theta));
+    
+    energyData.push({
+        time: time,
+        total: totalEnergy,
+        kinetic: kinetic,
+        potential: potential
+    });
+    
+    // Mantener solo los últimos puntos
+    if (energyData.length > MAX_ENERGY_POINTS) {
+        energyData.shift();
+    }
+}
+
+// Dibujar el péndulo
 function drawPendulum() {
-  // fondo
-  ctx.fillStyle = '#071018';
-  ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-
-  const ox = canvas.clientWidth / 2;
-  const oy = 100;
-  const pxPerM = getPxPerMeter();
-  const pxLen = L * pxPerM;
-  const x = ox + pxLen * Math.sin(theta);
-  const y = oy + pxLen * Math.cos(theta);
-
-  // varilla
-  ctx.strokeStyle = '#bfcbd8';
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(ox, oy);
-  ctx.lineTo(x, y);
-  ctx.stroke();
-
-  // masa
-  ctx.fillStyle = '#c84b4b';
-  ctx.beginPath();
-  ctx.arc(x, y, 14, 0, Math.PI * 2);
-  ctx.fill();
-
-  // HUD simple
-  ctx.fillStyle = '#98a6b2';
-  ctx.font = '14px Arial';
-  ctx.fillText(`Oscilaciones: ${oscCount} / ${N_OSC}`, 12, canvas.clientHeight - 12);
-}
-/* ---------- PARTE 3/3: Loop, finish y token ---------- */
-
-// token generator (no criptográfico, solo identificador)
-function generateCode(Lval, thetaDeg, bval, timeTaken, osc) {
-  const s = `${Lval.toFixed(2)}|${thetaDeg}|${bval.toFixed(3)}|${timeTaken.toFixed(2)}|${osc}`;
-  let h = 0;
-  for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; }
-  return 'PM-' + Math.abs(h).toString(36).toUpperCase().slice(0, 8);
-}
-
-// finish handler
-function finish(success) {
-  finished = true;
-  paused = true;
-  if (success) {
-    msgEl.textContent = '¡Éxito! Objetivo alcanzado.';
-    if (finalCodeInput) finalCodeInput.value = generateCode(L, theta0_deg, b, t_sim, oscCount);
-    navigator.vibrate && navigator.vibrate(150);
-  } else {
-    msgEl.textContent = 'No alcanzaste el objetivo.';
-    if (finalCodeInput) finalCodeInput.value = 'FAILED';
-  }
-}
-
-// raf loop con acumulador para pasos fijos (estable)
-let lastRAF = null;
-let accumulator = 0;
-
-function rafLoop(ts) {
-  if (!lastRAF) lastRAF = ts;
-  let frameTime = (ts - lastRAF) / 1000; // s
-  lastRAF = ts;
-
-  // cap para no explotar si la pestaña estuvo en segundo plano
-  frameTime = Math.min(frameTime, 0.05);
-
-  if (!paused && !finished) {
-    accumulator += frameTime;
-    while (accumulator >= dt_fixed) {
-      // integrar un paso fijo
-      const out = rk4_step(theta, omega, dt_fixed);
-      theta = out[0];
-      omega = out[1];
-      t_sim += dt_fixed;
-      accumulator -= dt_fixed;
-
-      // comprobación de oscilaciones
-      checkOscillation(t_sim);
-
-      // criterio de fallo mejorado:
-      // solo declarar fail si la velocidad es muy baja Y estamos cerca del centro Y pasó algo de tiempo
-      if (Math.abs(omega) < MIN_SPEED && Math.abs(theta) < 0.10 && t_sim > 1.0 && !finished) {
-        // si ya alcanzó N_OSC → éxito, si no → fallo
-        if (oscCount >= N_OSC) finish(true);
-        else finish(false);
-      }
-
-      // safety timeout
-      if (t_sim > 120 && !finished) finish(false);
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    
+    // Limpiar canvas
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Calcular posición del péndulo
+    const pendulumLength = Math.min(L * 100, centerY - 50); // Escalar longitud
+    const bobX = centerX + pendulumLength * Math.sin(theta);
+    const bobY = centerY + pendulumLength * Math.cos(theta);
+    
+    // Dibujar línea del péndulo
+    ctx.strokeStyle = '#4CAF50';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY);
+    ctx.lineTo(bobX, bobY);
+    ctx.stroke();
+    
+    // Dibujar punto de pivote
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Dibujar masa del péndulo
+    ctx.fillStyle = '#f44336';
+    ctx.beginPath();
+    ctx.arc(bobX, bobY, 15, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Dibujar sombra de la masa
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.beginPath();
+    ctx.arc(bobX + 3, bobY + 3, 15, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Dibujar trayectoria circular (opcional)
+    if (isRunning) {
+        ctx.strokeStyle = 'rgba(76, 175, 80, 0.2)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, pendulumLength, 0, 2 * Math.PI);
+        ctx.stroke();
     }
-  }
-
-  // dibujar y actualizar HUD
-  drawPendulum();
-  timeEl.textContent = t_sim.toFixed(2);
-  thetaEl.textContent = radToDeg(theta).toFixed(1);
-  omegaEl.textContent = omega.toFixed(3);
-
-  requestAnimationFrame(rafLoop);
 }
-requestAnimationFrame(rafLoop);
+
+// Dibujar gráfica de energía
+function drawEnergyGraph() {
+    if (!energyCanvas || !energyCtx || energyData.length < 2) return;
+    
+    const width = energyCanvas.width;
+    const height = energyCanvas.height;
+    
+    // Limpiar canvas
+    energyCtx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    energyCtx.fillRect(0, 0, width, height);
+    
+    // Encontrar valores máximos para escalar
+    const maxEnergy = Math.max(...energyData.map(d => d.total));
+    const minTime = energyData[0].time;
+    const maxTime = energyData[energyData.length - 1].time;
+    
+    if (maxEnergy === 0) return;
+    
+    // Dibujar líneas de energía
+    energyCtx.lineWidth = 2;
+    
+    // Energía total
+    energyCtx.strokeStyle = '#4CAF50';
+    energyCtx.beginPath();
+    energyData.forEach((point, index) => {
+        const x = (point.time - minTime) / (maxTime - minTime) * width;
+        const y = height - (point.total / maxEnergy) * height;
+        
+        if (index === 0) {
+            energyCtx.moveTo(x, y);
+        } else {
+            energyCtx.lineTo(x, y);
+        }
+    });
+    energyCtx.stroke();
+    
+    // Energía cinética
+    energyCtx.strokeStyle = '#2196F3';
+    energyCtx.beginPath();
+    energyData.forEach((point, index) => {
+        const x = (point.time - minTime) / (maxTime - minTime) * width;
+        const y = height - (point.kinetic / maxEnergy) * height;
+        
+        if (index === 0) {
+            energyCtx.moveTo(x, y);
+        } else {
+            energyCtx.lineTo(x, y);
+        }
+    });
+    energyCtx.stroke();
+    
+    // Energía potencial
+    energyCtx.strokeStyle = '#FF9800';
+    energyCtx.beginPath();
+    energyData.forEach((point, index) => {
+        const x = (point.time - minTime) / (maxTime - minTime) * width;
+        const y = height - (point.potential / maxEnergy) * height;
+        
+        if (index === 0) {
+            energyCtx.moveTo(x, y);
+        } else {
+            energyCtx.lineTo(x, y);
+        }
+    });
+    energyCtx.stroke();
+}
+
+// Actualizar display
+function updateDisplay() {
+    const gameTime = gameStarted ? time - gameStartTime : time;
+    timeValue.textContent = gameTime.toFixed(2);
+    angleDisplay.textContent = (theta * 180 / Math.PI).toFixed(2);
+    velocityValue.textContent = omega.toFixed(2);
+    oscCountValue.textContent = oscCount;
+}
+
+// Actualizar mensaje de estado
+function updateStatus(message, type = '') {
+    statusMessage.textContent = message;
+    statusMessage.className = `status-text ${type}`;
+}
+
+// Actualizar estado del juego
+function updateGameStatus(text, icon) {
+    if (gameStatusText) {
+        gameStatusText.textContent = text;
+    }
+    if (gameStatusIndicator) {
+        const iconElement = gameStatusIndicator.querySelector('.status-icon');
+        if (iconElement) {
+            iconElement.textContent = icon;
+        }
+    }
+}
+
+// Actualizar estados de botones
+function updateButtonStates() {
+    startBtn.disabled = isRunning;
+    pauseBtn.disabled = !isRunning;
+    impulseBtn.disabled = gameStarted || !isRunning; // Deshabilitado durante el juego
+}
+
+// Control de simulación
+function startSimulation() {
+    if (isRunning) return;
+    
+    isRunning = true;
+    isPaused = false;
+    gameStarted = true;
+    gameCompleted = false;
+    gameStartTime = time;
+    oscCount = 0;
+    lastCrossTime = 0;
+    energyData = [];
+    
+    updateButtonStates();
+    updateGameStatus('Jugando...', '🎮');
+    updateStatus("¡Desafío iniciado! Logra 5 oscilaciones en menos de 20 segundos", '');
+    
+    animate();
+}
+
+function pauseSimulation() {
+    if (!isRunning) return;
+    
+    isPaused = !isPaused;
+    updateButtonStates();
+    
+    if (isPaused) {
+        updateGameStatus('Pausado', '⏸️');
+        updateStatus("Simulación pausada", 'warning');
+    } else {
+        updateGameStatus('Jugando...', '🎮');
+        updateStatus("Simulación reanudada", '');
+        animate();
+    }
+}
+
+function resetSimulation() {
+    // Detener animación
+    if (animationId) {
+        cancelAnimationFrame(animationId);
+    }
+    
+    // Resetear variables
+    isRunning = false;
+    isPaused = false;
+    gameStarted = false;
+    gameCompleted = false;
+    time = 0;
+    oscCount = 0;
+    lastCrossTime = 0;
+    energyData = [];
+    
+    // Resetear ángulo inicial
+    const angleDeg = parseFloat(angleSlider.value);
+    theta = angleDeg * Math.PI / 180;
+    omega = 0;
+    
+    // Actualizar estados
+    updateButtonStates();
+    updateDisplay();
+    updateGameStatus('Preparado para jugar', '🎮');
+    updateStatus("Simulación reiniciada. Configura el péndulo y presiona 'Iniciar Desafío'", '');
+    
+    // Redibujar
+    drawPendulum();
+    if (energyCanvas) {
+        energyCtx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        energyCtx.fillRect(0, 0, energyCanvas.width, energyCanvas.height);
+    }
+}
+
+// Toggle gráfica de energía
+function toggleEnergyGraph() {
+    const container = document.getElementById('energyGraphContainer');
+    if (container) {
+        const isVisible = container.style.display !== 'none';
+        container.style.display = isVisible ? 'none' : 'block';
+        toggleGraphBtn.textContent = isVisible ? 'Mostrar Gráfica' : 'Ocultar Gráfica';
+    }
+}
+
+// Manejar redimensionamiento de ventana
+window.addEventListener('resize', function() {
+    initializeCanvas();
+    drawPendulum();
+    if (energyCanvas) {
+        drawEnergyGraph();
+    }
+});
+
+// Prevenir comportamiento por defecto en algunos eventos
+document.addEventListener('keydown', function(e) {
+    if (e.code === 'Space') {
+        e.preventDefault();
+        if (isRunning) {
+            pauseSimulation();
+        } else if (!gameCompleted) {
+            startSimulation();
+        }
+    }
+});
