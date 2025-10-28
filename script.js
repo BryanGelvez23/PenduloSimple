@@ -49,6 +49,15 @@ document.addEventListener('DOMContentLoaded', function() {
     updateDisplay();
     updateGameStatus('Preparado para jugar', '🎮');
     
+    // Asegurar que la gráfica esté visible al inicio
+    const container = document.getElementById('energyGraphContainer');
+    if (container) {
+        container.style.display = 'block';
+    }
+    if (toggleGraphBtn) {
+        toggleGraphBtn.textContent = 'Ocultar Gráfica';
+    }
+    
     // Inicializar canvas después de un pequeño delay para móviles
     setTimeout(() => {
         ultraInitializeCanvas();
@@ -234,6 +243,9 @@ function setupEventListeners() {
     
     if (toggleGraphBtn) {
         toggleGraphBtn.addEventListener('click', toggleEnergyGraph);
+        console.log('Botón de gráfica inicializado correctamente');
+    } else {
+        console.log('ERROR: Botón de gráfica no encontrado');
     }
     
     // Actualizar valores iniciales
@@ -621,6 +633,15 @@ function resetSimulation() {
     theta = angleDeg * Math.PI / 180;
     omega = 0;
     
+    // Mostrar gráfica de energía al reiniciar
+    const container = document.getElementById('energyGraphContainer');
+    if (container) {
+        container.style.display = 'block';
+    }
+    if (toggleGraphBtn) {
+        toggleGraphBtn.textContent = 'Ocultar Gráfica';
+    }
+    
     // Actualizar estados
     updateButtonStates();
     updateDisplay();
@@ -638,10 +659,21 @@ function resetSimulation() {
 // Toggle gráfica de energía
 function toggleEnergyGraph() {
     const container = document.getElementById('energyGraphContainer');
-    if (container) {
+    if (container && toggleGraphBtn) {
         const isVisible = container.style.display !== 'none';
         container.style.display = isVisible ? 'none' : 'block';
         toggleGraphBtn.textContent = isVisible ? 'Mostrar Gráfica' : 'Ocultar Gráfica';
+        
+        console.log('Gráfica toggled:', {
+            isVisible: !isVisible,
+            display: container.style.display,
+            buttonText: toggleGraphBtn.textContent
+        });
+    } else {
+        console.log('Container o botón no encontrado:', {
+            container: !!container,
+            button: !!toggleGraphBtn
+        });
     }
 }
 
