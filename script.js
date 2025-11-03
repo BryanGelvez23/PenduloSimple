@@ -8,7 +8,7 @@ let gameStarted = false;
 let gameCompleted = false;
 
 // Variables físicas del péndulo
-let theta = 0;          // Ángulo actual (radianes)
+let theta = 30 * Math.PI / 180;  // Ángulo actual (radianes) - inicializado a 30°
 let omega = 0;          // Velocidad angular (rad/s)
 let L = 1.0;           // Longitud del péndulo (m)
 let g = 9.8;           // Gravedad (m/s²)
@@ -23,8 +23,8 @@ let lastCrossTime = 0; // Último tiempo de cruce por cero
 const minCrossInterval = 0.15; // Intervalo mínimo entre cruces (debounce natural)
 
 // Parámetros del juego
-const TARGET_OSCILLATIONS = 5;
-const TIME_LIMIT = 20;
+let TARGET_OSCILLATIONS = 5;
+const TIME_LIMIT = 60;
 let gameStartTime = 0;
 
 // Parámetros de impulso (deshabilitado en el juego)
@@ -32,11 +32,12 @@ const impulseForce = 5;    // Fuerza del impulso (N)
 const impulseDuration = 0.05; // Duración del impulso (s)
 
 // Elementos del DOM
-let lengthSlider, angleSlider, dampingSlider, gravitySlider;
+let lengthSlider, angleSlider, dampingSlider, gravitySlider, oscillationsSlider;
 let startBtn, pauseBtn, resetBtn;
 let timeValue, angleDisplay, velocityValue, oscCountValue, statusMessage;
 let gameStatusText, gameStatusIndicator;
 let toggleGraphBtn;
+let oscTarget;
 
 // Datos para gráfica de energía
 let energyData = [];
@@ -100,6 +101,10 @@ function initializeElements() {
     angleSlider = document.getElementById('angleSlider');
     dampingSlider = document.getElementById('dampingSlider');
     gravitySlider = document.getElementById('gravitySlider');
+    oscillationsSlider = document.getElementById('oscillationsSlider');
+    
+    // Elementos de display adicionales
+    oscTarget = document.getElementById('oscTarget');
     
     // Botones
     startBtn = document.getElementById('startBtn');
@@ -236,6 +241,14 @@ function setupEventListeners() {
         document.getElementById('gravityValue').textContent = g.toFixed(1);
     });
     
+    oscillationsSlider.addEventListener('input', function() {
+        TARGET_OSCILLATIONS = parseInt(this.value);
+        document.getElementById('oscillationsValue').textContent = TARGET_OSCILLATIONS;
+        if (oscTarget) {
+            oscTarget.textContent = `/ ${TARGET_OSCILLATIONS}`;
+        }
+    });
+    
     // Botones
     startBtn.addEventListener('click', startSimulation);
     pauseBtn.addEventListener('click', pauseSimulation);
@@ -253,6 +266,9 @@ function setupEventListeners() {
     document.getElementById('angleValue').textContent = (theta * 180 / Math.PI).toFixed(0);
     document.getElementById('dampingValue').textContent = b.toFixed(2);
     document.getElementById('gravityValue').textContent = g.toFixed(1);
+    if (oscTarget) {
+        oscTarget.textContent = `/ ${TARGET_OSCILLATIONS}`;
+    }
 }
 
 // Función principal de integración RK4 - Movimiento natural sin detenciones artificiales
@@ -310,7 +326,7 @@ function checkGameConditions() {
     
     const gameTime = time - gameStartTime;
     
-    // Éxito: 5 oscilaciones completadas en menos de 20 segundos
+    // Éxito: 5 oscilaciones completadas en menos de 60 segundos
     if (oscCount >= TARGET_OSCILLATIONS && gameTime <= TIME_LIMIT) {
         finishGame(true, `¡RETO COMPLETADO! ${oscCount} oscilaciones en ${gameTime.toFixed(2)}s`);
         return true;
@@ -568,7 +584,7 @@ function updateButtonStates() {
     pauseBtn.disabled = !isRunning;
     
     // Deshabilitar sliders durante el juego
-    const sliders = [lengthSlider, angleSlider, dampingSlider, gravitySlider];
+    const sliders = [lengthSlider, angleSlider, dampingSlider, gravitySlider, oscillationsSlider];
     sliders.forEach(slider => {
         if (slider) {
             slider.disabled = gameStarted;
@@ -591,7 +607,7 @@ function startSimulation() {
     
     updateButtonStates();
     updateGameStatus('Jugando...', '🎮');
-    updateStatus("¡Desafío iniciado! Logra 5 oscilaciones en menos de 20 segundos", '');
+    updateStatus(`¡Desafío iniciado! Logra ${TARGET_OSCILLATIONS} oscilaciones en menos de 60 segundos`, '');
     
     animate();
 }
@@ -632,6 +648,12 @@ function resetSimulation() {
     const angleDeg = parseFloat(angleSlider.value);
     theta = angleDeg * Math.PI / 180;
     omega = 0;
+    
+    // Actualizar objetivo de oscilaciones
+    TARGET_OSCILLATIONS = parseInt(oscillationsSlider.value);
+    if (oscTarget) {
+        oscTarget.textContent = `/ ${TARGET_OSCILLATIONS}`;
+    }
     
     // Mostrar gráfica de energía al reiniciar
     const container = document.getElementById('energyGraphContainer');
