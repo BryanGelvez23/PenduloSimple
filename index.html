@@ -10,26 +10,22 @@
     <div class="container">
         <header>
             <h1>Péndulo Simple - Desafío Educativo</h1>
-            <p>Logra exactamente 5 oscilaciones completas en menos de 20 segundos</p>
+            <p>Configura las oscilaciones objetivo y logra alcanzarlas en menos de 60 segundos</p>
         </header>
 
         <div class="game-rules">
-            <h3>🎯 Reglas del Desafío</h3>
-            <ul>
-                <li>❌ <strong>NO</strong> uses el botón "Impulso"</li>
-                <li>✅ Solo ajusta: Ángulo inicial, Longitud y Amortiguación</li>
-                <li>🎯 Debes lograr <strong>EXACTAMENTE 5 oscilaciones</strong></li>
-                <li>⏱️ Tiempo límite: <strong>20 segundos</strong></li>
-                <li>🏆 Si haces 4.9 o 5.1 oscilaciones → NO cuenta</li>
-            </ul>
+            <h3>🎯 Objetivo</h3>
+            <p>
+                Comprender cómo las ecuaciones diferenciales describen el movimiento de un péndulo simple y cómo los parámetros físicos (longitud, gravedad, amortiguación y ángulo inicial) afectan el comportamiento del sistema.
+            </p>
         </div>
-
+        
         <div class="canvas-container">
             <canvas id="pendulumCanvas" width="800" height="400"></canvas>
             <div class="game-status">
                 <div class="status-indicator" id="gameStatusIndicator">
                     <span class="status-icon">🎮</span>
-                    <span id="gameStatusText">Preparado para jugar</span>
+                    <span id="gameStatusText">Preparado para aprender</span>
                 </div>
             </div>
         </div>
@@ -44,7 +40,7 @@
                 
                 <div class="slider-group">
                     <label for="angleSlider">Ángulo inicial (θ₀): <span id="angleValue">30</span>°</label>
-                    <input type="range" id="angleSlider" min="5" max="90" step="5" value="30">
+                    <input type="range" id="angleSlider" min="0" max="90" step="5" value="30">
                 </div>
                 
                 <div class="slider-group">
@@ -54,7 +50,12 @@
                 
                 <div class="slider-group">
                     <label for="gravitySlider">Gravedad (g): <span id="gravityValue">9.8</span> m/s²</label>
-                    <input type="range" id="gravitySlider" min="1.0" max="20.0" step="0.5" value="9.8">
+                    <input type="range" id="gravitySlider" min="1.0" max="20.0" step="0.1" value="9.8">
+                </div>
+                
+                <div class="slider-group">
+                    <label for="oscillationsSlider">Oscilaciones objetivo: <span id="oscillationsValue">5</span></label>
+                    <input type="range" id="oscillationsSlider" min="5" max="40" step="5" value="5">
                 </div>
             </div>
 
@@ -75,7 +76,7 @@
                     <div class="hud-item primary">
                         <span class="hud-label">⏱️ Tiempo:</span>
                         <span id="timeValue" class="hud-value">0.00</span> s
-                        <div class="time-limit">/ 20s</div>
+                        <div class="time-limit">/ 60s</div>
                     </div>
                     <div class="hud-item">
                         <span class="hud-label">📐 Ángulo:</span>
@@ -88,7 +89,7 @@
                     <div class="hud-item success">
                         <span class="hud-label">🎯 Oscilaciones:</span>
                         <span id="oscCountValue" class="hud-value">0</span>
-                        <div class="osc-target">/ 5</div>
+                        <div class="osc-target" id="oscTarget">/ 5</div>
                     </div>
                 </div>
                 <div class="status-message">
